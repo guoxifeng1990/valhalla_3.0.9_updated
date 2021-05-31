@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <iostream>
 #include <unordered_map>
+#include <utility>
 
 #include "config.h"
 
@@ -55,6 +56,7 @@ protected:
 struct edge_t {
   GraphId i;
   const DirectedEdge* e;
+  uint64_t way_id;
   operator const GraphId&() const {
     return i;
   }
@@ -69,25 +71,18 @@ struct edge_t {
 // Get the opposing edge - if the opposing index is invalid return a nullptr
 // for the directed edge. This should not occur but this can happen in
 // GraphValidator if it fails to find an opposing edge.
-edge_t opposing(GraphReader& reader, const GraphTile* tile, const DirectedEdge* edge) {
-  const GraphTile* t = edge->leaves_tile() ? reader.GetGraphTile(edge->endnode()) : tile;
-  auto id = edge->endnode();
-  id.set_id(t->node(id)->edge_index() + edge->opp_index());
-
-  // Check for invalid opposing index
-  if (edge->opp_index() == kMaxEdgesPerNode) {
-    PointLL ll = t->get_node_ll(edge->endnode());
-    LOG_ERROR("Invalid edge opp index = " + std::to_string(edge->opp_index()) +
-              " LL = " + std::to_string(ll.lat()) + "," + std::to_string(ll.lng()));
-    return {id, nullptr};
-  }
-  return {id, t->directededge(id)};
+edge_t opposing(GraphReader& reader, graph_tile_ptr tile, const GraphId& edge_id) {
+  const DirectedEdge* opp_edge = nullptr; // reader.GetOpposingEdge(edge_id,tile);
+  auto opp_id = reader.GetOpposingEdgeId(edge_id, opp_edge, tile);
+  auto edge_info_opp = tile->edgeinfo(opp_edge->edgeinfo_offset());
+  edge_t candidate{opp_id, opp_edge, edge_info_opp.wayid()};
+  return candidate;
 }
 
 edge_t next(const std::unordered_map<GraphId, uint64_t>& tile_set,
             const bitset_t& edge_set,
             GraphReader& reader,
-            const GraphTile*& tile,
+            graph_tile_ptr& tile,
             const edge_t& edge,
             const std::vector<std::string>& names) {
   // get the right tile
@@ -117,6 +112,7 @@ edge_t next(const std::unordered_map<GraphId, uint64_t>& tile_set,
     if (candidate.e->use() == Use::kTransitConnection || candidate.e->IsTransitLine()) {
       continue;
     }
+    candidate.way_id = tile->edgeinfo(candidate.e->edgeinfo_offset()).wayid();
     // names have to match
     auto candidate_names = tile->edgeinfo(candidate.e->edgeinfo_offset()).GetNames();
     if (names.size() == candidate_names.size() &&
@@ -129,7 +125,7 @@ edge_t next(const std::unordered_map<GraphId, uint64_t>& tile_set,
 }
 
 void extend(GraphReader& reader,
-            const GraphTile*& tile,
+            graph_tile_ptr& tile,
             const edge_t& edge,
             std::list<PointLL>& shape) {
   // get the shape
@@ -139,14 +135,35 @@ void extend(GraphReader& reader,
   // get the shape
   auto info = tile->edgeinfo(edge.e->edgeinfo_offset());
   auto more = valhalla::midgard::decode7<std::list<PointLL>>(info.encoded_shape());
+  //LOG_INFO("Exporting " + std::to_string(edge.i.value) + " edges");
+  //LOG_INFO("Exporting " + info.encoded_shape() + " edges");
+
   // this shape runs the other way
   if (!edge.e->forward()) {
     more.reverse();
   }
+
+  //const auto* node_output = tile->node(edge.e->endnode())
+
+  std::cout << edge.i.value << column_separator << edge.way_id << column_separator;
+  std::cout << encode(more) << column_separator;
+  std::cout << reader.GetBeginNodeId(edge.e, tile).value << column_separator;
+
+  std::cout << edge.e->endnode().value << column_separator;
+  const NodeInfo* nodeinfo_end = tile->node(edge.e->endnode());
+  std::cout << nodeinfo_end->latlng(tile->header()->base_ll()).first << column_separator;
+  std::cout << nodeinfo_end->latlng(tile->header()->base_ll()).second << column_separator;
+
+
   // connecting another shape we dont want dups where they meet
   if (shape.size()) {
     more.pop_front();
   }
+
+
+
+
+
   shape.splice(shape.end(), more);
 }
 
@@ -216,12 +233,13 @@ int main(int argc, char* argv[]) {
   std::unordered_map<GraphId, uint64_t> tile_set(kMaxGraphTileId * TileHierarchy::levels().size());
   uint64_t edge_count = 0;
   for (const auto& level : TileHierarchy::levels()) {
-    for (uint32_t i = 0; i < level.second.tiles.TileCount(); ++i) {
-      GraphId tile_id{i, level.first, 0};
+    for (uint32_t i = 0; i < level.tiles.TileCount(); ++i) {
+      GraphId tile_id{i, level.level, 0};
       if (reader.DoesTileExist(tile_id)) {
         // TODO: just read the header, parsing the whole thing isnt worth it at this point
         tile_set.emplace(tile_id, edge_count);
-        const auto* tile = reader.GetGraphTile(tile_id);
+        auto tile = reader.GetGraphTile(tile_id);
+        assert(tile);
         edge_count += tile->header()->directededgecount();
         reader.Clear();
       }
@@ -243,7 +261,8 @@ int main(int argc, char* argv[]) {
   for (const auto& tile_count_pair : tile_set) {
     // for each edge in the tile
     reader.Clear();
-    const auto* tile = reader.GetGraphTile(tile_count_pair.first);
+    auto tile = reader.GetGraphTile(tile_count_pair.first);
+    assert(tile);
     for (uint32_t i = 0; i < tile->header()->directededgecount(); ++i) {
       // we've seen this one already
       if (edge_set.get(tile_count_pair.second + i)) {
@@ -255,7 +274,11 @@ int main(int argc, char* argv[]) {
       // marked
 
       // make sure we dont ever look at this again
-      edge_t edge{tile_count_pair.first, tile->directededge(i)};
+
+      // initial the first wayid
+      const DirectedEdge* first_edge = tile->directededge(i);
+      auto edge_info_first = tile->edgeinfo(first_edge->edgeinfo_offset());
+      edge_t edge{tile_count_pair.first, first_edge, edge_info_first.wayid()};
       edge.i.set_id(i);
       edge_set.set(tile_count_pair.second + i);
       ++set;
@@ -268,6 +291,13 @@ int main(int argc, char* argv[]) {
 
       // get the opposing edge as well (ensure a valid edge is returned)
       edge_t opposing_edge = opposing(reader, tile, edge);
+
+      // keep some state about this section of road
+      std::list<edge_t> edges{edge};
+
+      set += 1;
+
+      edges.push_back(opposing_edge);
       if (opposing_edge.e == nullptr) {
         continue;
       }
@@ -281,6 +311,7 @@ int main(int argc, char* argv[]) {
 
       // no name no thanks
       auto edge_info = tile->edgeinfo(edge.e->edgeinfo_offset());
+      edge.way_id = edge_info.wayid();
       auto names = edge_info.GetNames();
       if (names.size() == 0 && !unnamed) {
         continue;
@@ -296,11 +327,9 @@ int main(int argc, char* argv[]) {
       // they are DAGs. this can produce suboptimal results however and depends on the initial edge.
       // so for now we'll just greedily export edges
 
-      // keep some state about this section of road
-      std::list<edge_t> edges{edge};
 
       // go forward
-      const auto* t = tile;
+      auto t = tile;
       while ((edge = next(tile_set, edge_set, reader, t, edge, names))) {
         // mark them to never be used again
         edge_set.set(tile_set.find(edge.i.Tile_Base())->second + edge.i.id());
@@ -312,6 +341,7 @@ int main(int argc, char* argv[]) {
         set += 2;
         // keep this
         edges.push_back(edge);
+        edges.push_back(other);
       }
 
       // go backward
@@ -321,12 +351,15 @@ int main(int argc, char* argv[]) {
         edge_set.set(tile_set.find(edge.i.Tile_Base())->second + edge.i.id());
         edge_t other = opposing(reader, t, edge);
         if (other.e == nullptr) {
+LOG_INFO("Exporting " + std::to_string(other.i.value) + " edges");
+  	LOG_INFO("E--------------------------------------------");
           continue;
         }
         edge_set.set(tile_set.find(other.i.Tile_Base())->second + other.i.id());
         set += 2;
         // keep this
         edges.push_front(other);
+        edges.push_front(edge);
       }
 
       // get the shape
@@ -336,11 +369,14 @@ int main(int argc, char* argv[]) {
       }
 
       // output it as: shape,name,name,...
-      auto encoded = encode(shape);
-      std::cout << encoded << column_separator;
-      for (const auto& name : names) {
-        std::cout << name << (&name == &names.back() ? "" : column_separator);
-      }
+      //auto encoded = encode(shape);
+      //std::cout << encoded << column_separator;
+      //for (const auto& e : edges) {
+      //  std::cout << e.i.value << column_separator << *(e.e->json()) << column_separator;
+      //}
+      //for (const auto& name : names) {
+      //  std::cout << name << (&name == &names.back() ? "" : column_separator);
+      //}
       std::cout << row_separator;
       std::cout.flush();
     }
