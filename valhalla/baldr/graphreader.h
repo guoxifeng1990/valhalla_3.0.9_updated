@@ -497,7 +497,7 @@ public:
    * @param tile    reference to a pointer to a const tile
    * @return        returns GraphId of begin node of the edge (empty if couldn't find)
    */
-  GraphId GetBeginNodeId(const DirectedEdge* edge, GraphTile*& tile) {
+  GraphId GetBeginNodeId(const DirectedEdge* edge, const GraphTile*& tile) {
     // grab the node
     if (!GetGraphTile(edge->endnode(), tile))
       return {};
