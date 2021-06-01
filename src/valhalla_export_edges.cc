@@ -73,7 +73,7 @@ struct edge_t {
 // GraphValidator if it fails to find an opposing edge.
 edge_t opposing(GraphReader& reader, const GraphTile* tile, const GraphId& edge_id) {
   const DirectedEdge* opp_edge = nullptr; // reader.GetOpposingEdge(edge_id,tile);
-  auto opp_id = reader.GetOpposingEdgeId(edge_id, opp_edge, tile);
+  auto opp_id = reader.GetOpposingEdgeId(edge_id, tile);
   auto edge_info_opp = tile->edgeinfo(opp_edge->edgeinfo_offset());
   edge_t candidate{opp_id, opp_edge, edge_info_opp.wayid()};
   return candidate;
@@ -233,8 +233,8 @@ int main(int argc, char* argv[]) {
   std::unordered_map<GraphId, uint64_t> tile_set(kMaxGraphTileId * TileHierarchy::levels().size());
   uint64_t edge_count = 0;
   for (const auto& level : TileHierarchy::levels()) {
-    for (uint32_t i = 0; i < level.tiles.TileCount(); ++i) {
-      GraphId tile_id{i, level.level, 0};
+    for (uint32_t i = 0; i < level.second.tiles.TileCount(); ++i) {
+      GraphId tile_id{i, level.first, 0};
       if (reader.DoesTileExist(tile_id)) {
         // TODO: just read the header, parsing the whole thing isnt worth it at this point
         tile_set.emplace(tile_id, edge_count);
