@@ -84,6 +84,7 @@ edge_t opposing(GraphReader& reader, const GraphTile* tile, const DirectedEdge* 
     edge_t candidate{id, nullptr, nullptr};
     return candidate;
   }
+  const DirectedEdge* opp_edge = nullptr; // reader.GetOpposingEdge(edge_id,tile);
   auto edge_info_opp = t->edgeinfo(opp_edge->edgeinfo_offset());
   edge_t candidate{id, nullptr, edge_info_opp.wayid()};
   return candidate;
