@@ -238,8 +238,7 @@ int main(int argc, char* argv[]) {
       if (reader.DoesTileExist(tile_id)) {
         // TODO: just read the header, parsing the whole thing isnt worth it at this point
         tile_set.emplace(tile_id, edge_count);
-        auto tile = reader.GetGraphTile(tile_id);
-        assert(tile);
+        const auto* tile = reader.GetGraphTile(tile_id);
         edge_count += tile->header()->directededgecount();
         reader.Clear();
       }
@@ -261,8 +260,7 @@ int main(int argc, char* argv[]) {
   for (const auto& tile_count_pair : tile_set) {
     // for each edge in the tile
     reader.Clear();
-    auto tile = reader.GetGraphTile(tile_count_pair.first);
-    assert(tile);
+    const auto* tile = reader.GetGraphTile(tile_count_pair.first);
     for (uint32_t i = 0; i < tile->header()->directededgecount(); ++i) {
       // we've seen this one already
       if (edge_set.get(tile_count_pair.second + i)) {
@@ -329,7 +327,7 @@ int main(int argc, char* argv[]) {
 
 
       // go forward
-      auto t = tile;
+      const auto* t = tile;
       while ((edge = next(tile_set, edge_set, reader, t, edge, names))) {
         // mark them to never be used again
         edge_set.set(tile_set.find(edge.i.Tile_Base())->second + edge.i.id());
