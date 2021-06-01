@@ -71,7 +71,7 @@ struct edge_t {
 // Get the opposing edge - if the opposing index is invalid return a nullptr
 // for the directed edge. This should not occur but this can happen in
 // GraphValidator if it fails to find an opposing edge.
-edge_t opposing(GraphReader& reader, graph_tile_ptr tile, const GraphId& edge_id) {
+edge_t opposing(GraphReader& reader, const GraphTile* tile, const GraphId& edge_id) {
   const DirectedEdge* opp_edge = nullptr; // reader.GetOpposingEdge(edge_id,tile);
   auto opp_id = reader.GetOpposingEdgeId(edge_id, opp_edge, tile);
   auto edge_info_opp = tile->edgeinfo(opp_edge->edgeinfo_offset());
@@ -82,7 +82,7 @@ edge_t opposing(GraphReader& reader, graph_tile_ptr tile, const GraphId& edge_id
 edge_t next(const std::unordered_map<GraphId, uint64_t>& tile_set,
             const bitset_t& edge_set,
             GraphReader& reader,
-            graph_tile_ptr& tile,
+            const GraphTile*& tile,
             const edge_t& edge,
             const std::vector<std::string>& names) {
   // get the right tile
@@ -125,7 +125,7 @@ edge_t next(const std::unordered_map<GraphId, uint64_t>& tile_set,
 }
 
 void extend(GraphReader& reader,
-            graph_tile_ptr& tile,
+            const GraphTile*& tile,
             const edge_t& edge,
             std::list<PointLL>& shape) {
   // get the shape
