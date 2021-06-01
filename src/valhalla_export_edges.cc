@@ -81,11 +81,11 @@ edge_t opposing(GraphReader& reader, const GraphTile* tile, const DirectedEdge* 
     PointLL ll = t->get_node_ll(edge->endnode());
     LOG_ERROR("Invalid edge opp index = " + std::to_string(edge->opp_index()) +
               " LL = " + std::to_string(ll.lat()) + "," + std::to_string(ll.lng()));
-    edge_t candidate{opp_id, nullptr, nullptr};
+    edge_t candidate{id, nullptr, nullptr};
     return candidate;
   }
   auto edge_info_opp = t->edgeinfo(opp_edge->edgeinfo_offset());
-  edge_t candidate{opp_id, opp_edge, edge_info_opp.wayid()};
+  edge_t candidate{id, nullptr, edge_info_opp.wayid()};
   return candidate;
 
 edge_t next(const std::unordered_map<GraphId, uint64_t>& tile_set,
