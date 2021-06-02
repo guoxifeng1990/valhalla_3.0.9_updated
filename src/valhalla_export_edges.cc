@@ -238,7 +238,8 @@ int main(int argc, char* argv[]) {
       if (reader.DoesTileExist(tile_id)) {
         // TODO: just read the header, parsing the whole thing isnt worth it at this point
         tile_set.emplace(tile_id, edge_count);
-        const auto* tile = reader.GetGraphTile(tile_id);
+        auto tile = reader.GetGraphTile(tile_id);
+        assert(tile);
         edge_count += tile->header()->directededgecount();
         reader.Clear();
       }
@@ -260,7 +261,9 @@ int main(int argc, char* argv[]) {
   for (const auto& tile_count_pair : tile_set) {
     // for each edge in the tile
     reader.Clear();
-    const auto* tile = reader.GetGraphTile(tile_count_pair.first);
+    LOG_INFO("3--------------------------------------------");
+    auto tile = reader.GetGraphTile(tile_count_pair.first);
+    assert(tile);
     for (uint32_t i = 0; i < tile->header()->directededgecount(); ++i) {
       // we've seen this one already
       if (edge_set.get(tile_count_pair.second + i)) {
@@ -292,7 +295,7 @@ int main(int argc, char* argv[]) {
 
       // keep some state about this section of road
       std::list<edge_t> edges{edge};
-
+      LOG_INFO("2--------------------------------------------");
       set += 1;
 
       edges.push_back(opposing_edge);
@@ -325,9 +328,9 @@ int main(int argc, char* argv[]) {
       // they are DAGs. this can produce suboptimal results however and depends on the initial edge.
       // so for now we'll just greedily export edges
 
-
+      LOG_INFO("1--------------------------------------------");
       // go forward
-      const auto* t = tile;
+      auto t = tile;
       while ((edge = next(tile_set, edge_set, reader, t, edge, names))) {
         // mark them to never be used again
         edge_set.set(tile_set.find(edge.i.Tile_Base())->second + edge.i.id());
