@@ -261,7 +261,6 @@ int main(int argc, char* argv[]) {
   for (const auto& tile_count_pair : tile_set) {
     // for each edge in the tile
     reader.Clear();
-    LOG_INFO("3--------------------------------------------");
     auto tile = reader.GetGraphTile(tile_count_pair.first);
     assert(tile);
     for (uint32_t i = 0; i < tile->header()->directededgecount(); ++i) {
@@ -291,12 +290,10 @@ int main(int argc, char* argv[]) {
       }
 
       // get the opposing edge as well (ensure a valid edge is returned)
-      LOG_INFO("4--------------------------------------------");
       edge_t opposing_edge = opposing(reader, tile, edge);
 
       // keep some state about this section of road
       std::list<edge_t> edges{edge};
-      LOG_INFO("2--------------------------------------------");
       set += 1;
 
       edges.push_back(opposing_edge);
@@ -328,8 +325,7 @@ int main(int argc, char* argv[]) {
       // that
       // they are DAGs. this can produce suboptimal results however and depends on the initial edge.
       // so for now we'll just greedily export edges
-
-      LOG_INFO("1--------------------------------------------");
+      
       // go forward
       auto t = tile;
       while ((edge = next(tile_set, edge_set, reader, t, edge, names))) {
