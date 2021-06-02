@@ -72,7 +72,7 @@ struct edge_t {
 // for the directed edge. This should not occur but this can happen in
 // GraphValidator if it fails to find an opposing edge.
 edge_t opposing(GraphReader& reader, const GraphTile* tile, const GraphId& edge_id) {
-  const DirectedEdge* opp_edge = nullptr; // reader.GetOpposingEdge(edge_id,tile);
+  const DirectedEdge* opp_edge = reader.GetOpposingEdge(edge_id,tile); // nullptr; 
   auto opp_id = reader.GetOpposingEdgeId(edge_id, tile);
   auto edge_info_opp = tile->edgeinfo(opp_edge->edgeinfo_offset());
   edge_t candidate{opp_id, opp_edge, edge_info_opp.wayid()};
