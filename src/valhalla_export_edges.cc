@@ -291,7 +291,7 @@ int main(int argc, char* argv[]) {
       }
 
       // get the opposing edge as well (ensure a valid edge is returned)
-      LOG_INFO("2--------------------------------------------");
+      LOG_INFO("4--------------------------------------------");
       edge_t opposing_edge = opposing(reader, tile, edge);
 
       // keep some state about this section of road
